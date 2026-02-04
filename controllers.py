@@ -1,114 +1,68 @@
-"""Controller implementations using stateful classes.
-
-Each controller has:
-- calculate_control_signal(params, error): Computes control signal U from error E
-- error_history: Tracks errors for integral and derivative terms
-"""
+"""Controller implementations for the control system."""
 import jax.numpy as jnp
 
 
+# Activation function registry
+ACTIVATIONS = {
+    "sigmoid": lambda x: 1.0 / (1.0 + jnp.exp(-x)),
+    "tanh": jnp.tanh,
+    "relu": lambda x: jnp.maximum(0.0, x),
+    "linear": lambda x: x,
+}
+
+
 class Controller:
-    """Base class for all controllers."""
+    """Base controller with error tracking."""
+
+    INTEGRAL_LIMIT = 50.0  # Anti-windup bound
 
     def __init__(self):
-        self.error_history = []
+        self._errors = []
+
+    def _compute_error_terms(self, e):
+        """Compute P, I, D terms from current error."""
+        self._errors.append(e)
+
+        p_term = e
+        d_term = e - self._errors[-2] if len(self._errors) > 1 else 0.0
+        i_term = jnp.clip(sum(self._errors), -self.INTEGRAL_LIMIT, self.INTEGRAL_LIMIT)
+
+        return jnp.array([p_term, d_term, i_term])
 
     def calculate_control_signal(self, params, error):
-        """Calculate control signal U from error E and parameters."""
         raise NotImplementedError
 
 
 class PIDController(Controller):
-    """Classic 3-parameter PID controller.
-
-    params: jnp.array([kp, ki, kd])
-    """
+    """PID controller: U = Kp*e + Ki*integral(e) + Kd*de/dt"""
 
     def calculate_control_signal(self, params, error):
-        self.error_history.append(error)
-
-        # Proportional term
-        proportional = error
-
-        # Derivative term
-        if len(self.error_history) > 1:
-            derivative = error - self.error_history[-2]
-        else:
-            derivative = 0.0
-
-        # Integral term (with anti-windup clipping)
-        integral = jnp.clip(sum(self.error_history), -50.0, 50.0)
-
-        # PID formula: U = kp*e + ki*integral + kd*derivative
-        input_vector = jnp.array([proportional, derivative, integral])
-        return params.dot(input_vector)
+        pid_input = self._compute_error_terms(error)
+        return jnp.dot(params, pid_input)
 
 
 class NeuralController(Controller):
-    """Neural network-based controller.
-
-    params: List of (weight, bias) tuples for each layer
-    """
+    """Feedforward neural network controller."""
 
     def __init__(self, activation_functions, output_activation_function):
         super().__init__()
-        self.activation_functions = activation_functions
-        self.output_activation_function = output_activation_function
+        self._hidden_acts = activation_functions
+        self._output_act = output_activation_function
 
-    def sigmoid(self, x):
-        x = jnp.clip(x, -20, 20)  # Prevent overflow
-        return 1.0 / (1.0 + jnp.exp(-x))
-
-    def tanh(self, x):
-        return jnp.tanh(x)
-
-    def relu(self, x):
-        return jnp.maximum(0.0, x)
-
-    def linear(self, x):
-        return x
-
-    def apply_activation(self, x, activation_name):
-        """Apply activation function by name."""
-        if activation_name == "sigmoid":
-            return self.sigmoid(x)
-        elif activation_name == "tanh":
-            return self.tanh(x)
-        elif activation_name == "relu":
-            return self.relu(x)
-        elif activation_name == "linear":
-            return self.linear(x)
-        else:
-            raise ValueError(f"Unknown activation function: {activation_name}")
+    def _forward_pass(self, x, layer_params):
+        """Single layer: linear transform + activation."""
+        weights, biases = layer_params
+        return x @ weights + biases
 
     def calculate_control_signal(self, params, error):
-        self.error_history.append(error)
+        x = self._compute_error_terms(error)
 
-        # Proportional term
-        proportional = error
+        # Build activation list for all layers
+        act_names = self._hidden_acts + [self._output_act]
 
-        # Derivative term
-        if len(self.error_history) > 1:
-            derivative = error - self.error_history[-2]
-        else:
-            derivative = 0.0
+        # Forward through network
+        for act_name, layer in zip(act_names, params):
+            x = self._forward_pass(x, layer)
+            x = ACTIVATIONS[act_name](x)
 
-        # Integral term (with anti-windup clipping to prevent explosion)
-        integral = jnp.clip(sum(self.error_history), -50.0, 50.0)
-
-        # Input vector: [proportional, derivative, integral]
-        activation = jnp.array([proportional, derivative, integral])
-
-        # Forward pass through hidden layers
-        all_activations = self.activation_functions + [self.output_activation_function]
-
-        for activation_fn_name, (weight, bias) in zip(all_activations, params):
-            # Linear transformation
-            activation = activation.dot(weight) + bias
-
-            # Apply activation function
-            activation = self.apply_activation(activation, activation_fn_name)
-
-        # Squeeze to scalar output
-        activation = activation.squeeze()
-        return activation
+        return x.squeeze()

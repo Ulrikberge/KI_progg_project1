@@ -4,7 +4,7 @@
 Simply change ACTIVE_PRESET to switch between experiments.
 """
 
-ACTIVE_PRESET = "cournot_neural"  # See PRESETS dict below for options
+ACTIVE_PRESET = "blood_glucose_pid"  # See PRESETS dict below for options
 
 VERBOSE = True
 ENABLE_PLOTS = True
