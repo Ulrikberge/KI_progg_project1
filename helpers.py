@@ -1,97 +1,111 @@
-"""Helper functions for creating plants, controllers, and parameters."""
+"""Factory module for instantiating system components from presets.
+
+This module provides factory functions that read the active preset
+configuration and create the appropriate plant, controller, and
+parameter objects for the experiment.
+"""
 import numpy as np
-import config as config
-from plants import NorwayPopulationPlant, BathtubPlant, CournotPlant
+from config import get_preset, get_plant_config, get_controller_config
+from plants import BathtubPlant, CournotPlant, BloodGlucosePlant
 from controllers import PIDController, NeuralController
 
 
-def get_params():
-    """Initialize controller parameters based on config."""
-    if config.CONTROLLER == "pid":
-        # PID: 3 parameters [kp, ki, kd] from config
-        params = np.array(config.PID_INITIAL_PARAMS)
+def initialize_parameters():
+    """Create initial controller parameters based on active preset.
 
-    elif config.CONTROLLER == "neural":
-        # Neural network: list of (weight, bias) tuples
-        params = []
-        hidden_layers = config.NEURAL_NETWORK["neurons_per_hidden_layer"]
+    Returns:
+        For PID: numpy array [Kp, Ki, Kd]
+        For Neural: list of (weights, biases) tuples per layer
+    """
+    preset = get_preset()
+    ctrl_type = preset["controller_type"]
+    ctrl_config = get_controller_config()
 
-        # Input size is always 3 (proportional, derivative, integral)
-        sender = 3
+    if ctrl_type == "pid":
+        return np.array(ctrl_config["initial_gains"], dtype=np.float32)
 
-        # Create weight and bias for each layer (including output layer)
-        for receiver in hidden_layers + [1]:  # +[1] for output layer
-            weights = np.random.uniform(
-                config.NEURAL_NETWORK["weight_range"][0],
-                config.NEURAL_NETWORK["weight_range"][1],
-                (sender, receiver)
-            )
-            biases = np.random.uniform(
-                config.NEURAL_NETWORK["bias_range"][0],
-                config.NEURAL_NETWORK["bias_range"][1],
-                receiver  # Shape (receiver,) not (1, receiver)
-            )
-            params.append((weights, biases))
-            sender = receiver
+    elif ctrl_type == "neural":
+        layers = ctrl_config["layer_sizes"]
+        w_range = ctrl_config["weight_init"]
+        b_range = ctrl_config["bias_init"]
 
-    else:
-        raise ValueError(f"Invalid controller type: {config.CONTROLLER}")
+        # Build layer-by-layer: input(3) -> hidden layers -> output(1)
+        network_params = []
+        input_dim = 3  # [proportional, derivative, integral]
 
-    return params
+        for output_dim in layers + [1]:
+            W = np.random.uniform(w_range[0], w_range[1], (input_dim, output_dim))
+            b = np.random.uniform(b_range[0], b_range[1], output_dim)
+            network_params.append((W, b))
+            input_dim = output_dim
+
+        return network_params
+
+    raise ValueError(f"Unknown controller type: {ctrl_type}")
 
 
-def get_controller():
-    """Create controller object based on config."""
-    if config.CONTROLLER == "pid":
-        controller = PIDController()
+def create_controller():
+    """Instantiate controller object based on active preset.
 
-    elif config.CONTROLLER == "neural":
-        controller = NeuralController(
-            activation_functions=config.NEURAL_NETWORK["activation_functions"],
-            output_activation_function=config.NEURAL_NETWORK["output_activation_function"]
+    Returns:
+        Controller instance (PID or Neural Network)
+    """
+    preset = get_preset()
+    ctrl_type = preset["controller_type"]
+    ctrl_config = get_controller_config()
+
+    if ctrl_type == "pid":
+        return PIDController()
+
+    elif ctrl_type == "neural":
+        return NeuralController(
+            activation_functions=ctrl_config["hidden_activations"],
+            output_activation_function=ctrl_config["output_activation"]
         )
 
-    else:
-        raise ValueError(f"Invalid controller type: {config.CONTROLLER}")
-
-    return controller
+    raise ValueError(f"Unknown controller type: {ctrl_type}")
 
 
-def get_plant():
-    """Create plant object and target value based on config."""
-    if config.PLANT == "norway_population":
-        plant = NorwayPopulationPlant(
-            initial_population=config.NORWAY_POPULATION["initial_population"],
-            base_birth_rate=config.NORWAY_POPULATION["base_birth_rate"],
-            base_death_rate=config.NORWAY_POPULATION["base_death_rate"],
-            carrying_capacity=config.NORWAY_POPULATION["carrying_capacity"],
-            dt=config.NORWAY_POPULATION["dt"],
-            noise_range=config.NORWAY_POPULATION["noise_range"]
-        )
-        target = config.NORWAY_POPULATION["target_population"]
+def create_plant():
+    """Instantiate plant and target value based on active preset.
 
-    elif config.PLANT == "bathtub":
+    Returns:
+        Tuple of (plant_instance, target_value)
+    """
+    preset = get_preset()
+    plant_type = preset["plant_type"]
+    cfg = get_plant_config()
+
+    if plant_type == "bathtub":
         plant = BathtubPlant(
-            area=config.BATHTUB["cross_sectional_area"],
-            drain_coefficient=config.BATHTUB["drain_coefficient"],
-            initial_height=config.BATHTUB["initial_height"],
-            gravity=config.BATHTUB["gravity"],
-            dt=config.BATHTUB["dt"],
-            noise_range=config.BATHTUB["noise_range"]
+            area=cfg["tank_area"],
+            drain_coefficient=cfg["outlet_area"],
+            initial_height=cfg["initial_level"],
+            gravity=9.81,
+            dt=1.0,
+            noise_range=cfg["disturbance_range"]
         )
-        target = config.BATHTUB["target_height"]
+        return plant, cfg["target_level"]
 
-    elif config.PLANT == "cournot":
+    elif plant_type == "cournot":
         plant = CournotPlant(
-            max_price=config.COURNOT["max_price"],
-            marginal_cost=config.COURNOT["marginal_cost"],
-            initial_q1=config.COURNOT["initial_q1"],
-            initial_q2=config.COURNOT["initial_q2"],
-            noise_range=config.COURNOT["noise_range"]
+            max_price=cfg["price_intercept"],
+            marginal_cost=cfg["unit_cost"],
+            initial_q1=cfg["firm1_quantity"],
+            initial_q2=cfg["firm2_quantity"],
+            noise_range=cfg["disturbance_range"]
         )
-        target = config.COURNOT["target_profit"]
+        return plant, cfg["target_profit"]
 
-    else:
-        raise ValueError(f"Invalid plant type: {config.PLANT}")
+    elif plant_type == "blood_glucose":
+        plant = BloodGlucosePlant(
+            initial_glucose=cfg["initial_glucose"],
+            basal_glucose=cfg["basal_glucose"],
+            insulin_sensitivity=cfg["control_sensitivity"],
+            glucose_clearance=cfg["clearance_rate"],
+            dt=cfg["time_step"],
+            noise_range=cfg["disturbance_range"]
+        )
+        return plant, cfg["target_glucose"]
 
-    return plant, target
+    raise ValueError(f"Unknown plant type: {plant_type}")

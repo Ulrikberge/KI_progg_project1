@@ -17,7 +17,7 @@ def main():
     params, mse_history, param_history = train()
 
     # Plot results
-    if config.ENABLE_VISUALIZATION:
+    if config.ENABLE_PLOTS:
         plot_results(mse_history, param_history)
 
 

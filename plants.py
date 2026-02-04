@@ -20,37 +20,48 @@ class Plant:
         raise NotImplementedError
 
 
-class NorwayPopulationPlant(Plant):
-    """Norway population model with logistic growth."""
+class BloodGlucosePlant(Plant):
+    """Blood glucose regulation model (simplified glucose dynamics).
 
-    def __init__(self, initial_population, base_birth_rate, base_death_rate,
-                 carrying_capacity, dt, noise_range):
-        self.population = initial_population
-        self.base_birth_rate = base_birth_rate
-        self.base_death_rate = base_death_rate
-        self.carrying_capacity = carrying_capacity
+    Models how blood glucose changes based on:
+    - Control signal U - directly adjusts glucose (e.g., insulin/glucagon balance)
+    - Meal/activity disturbance - random glucose fluctuations
+    - Natural clearance - body tries to return to basal glucose level
+
+    Differential equation:
+    dG/dt = sensitivity * U + disturbance - clearance * (G - G_basal)
+    """
+
+    def __init__(self, initial_glucose, basal_glucose, insulin_sensitivity,
+                 glucose_clearance, dt, noise_range):
+        self.glucose = initial_glucose  # Current blood glucose (mg/dL)
+        self.basal_glucose = basal_glucose  # Equilibrium glucose level
+        self.insulin_sensitivity = insulin_sensitivity  # How much insulin affects glucose
+        self.glucose_clearance = glucose_clearance  # Natural uptake rate
         self.dt = dt
         self.noise_range = noise_range
 
     def get_output(self):
-        return self.population
+        return self.glucose
 
     def timestep(self, control_signal):
-        # Disturbance affects death rate
-        disturbance = np.random.uniform(self.noise_range[0], self.noise_range[1])
+        # Disturbance represents meal/carbohydrate absorption
+        meal_disturbance = np.random.uniform(self.noise_range[0], self.noise_range[1])
 
-        # Birth and death rates (control adjusts birth rate)
-        birth_rate = self.base_birth_rate + control_signal
-        death_rate = self.base_death_rate + disturbance
+        # Control signal effect on glucose:
+        # Positive error (glucose < target) → positive U → increase glucose
+        # Negative error (glucose > target) → negative U → decrease glucose
+        # So control_signal directly adjusts glucose in the right direction
+        control_effect = self.insulin_sensitivity * control_signal
 
-        # Net growth rate
-        r = birth_rate - death_rate
+        # Natural clearance: body tries to return to basal glucose
+        natural_clearance = self.glucose_clearance * (self.glucose - self.basal_glucose)
 
-        # Logistic growth: dP/dt = r * P * (1 - P/K)
-        growth = r * self.population * (1.0 - self.population / self.carrying_capacity)
+        # Glucose dynamics: dG/dt = control_effect + meal - clearance
+        dG = control_effect + meal_disturbance - natural_clearance
 
-        # Update population
-        self.population = jnp.maximum(0.0, self.population + growth * self.dt)
+        # Update glucose (cannot go below 0)
+        self.glucose = jnp.maximum(0.0, self.glucose + dG * self.dt)
 
 
 class BathtubPlant(Plant):
@@ -58,7 +69,7 @@ class BathtubPlant(Plant):
 
     def __init__(self, area, drain_coefficient, initial_height, gravity, dt, noise_range):
         self.area = area
-        self.drain_area = drain_coefficient  # This is actually drain area (C)
+        self.drain_area = drain_coefficient  
         self.water_level = initial_height
         self.noise_range = noise_range
 
@@ -66,7 +77,7 @@ class BathtubPlant(Plant):
         return self.water_level
 
     def timestep(self, control_signal):
-        # Drain velocity: V = sqrt(2*g*H)
+        
         velocity = jnp.sqrt(2.0 * 9.81 * self.water_level)
 
         # Disturbance
