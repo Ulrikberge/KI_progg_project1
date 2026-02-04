@@ -4,17 +4,17 @@ EDIT THIS FILE to configure your experiment.
 All pivotal parameters are set here in ONE PLACE.
 """
 
-PLANT = "norway_population"  # "bathtub" | "cournot" | "norway_population"
-CONTROLLER = "neural"  # "pid" | "neural"
+PLANT = "bathtub"  # "bathtub" | "cournot" | "norway_population"
+CONTROLLER = "pid"  # "pid" | "neural"
 
 VERBOSE = True  # Print progress during training
 
 TRAINING_EPOCHS = 200
 SIMULATION_TIMESTEPS = 100
-LEARNING_RATE = 0.0001  # Bathtub: small errors now, same as Cournot
+LEARNING_RATE = 0.01  # Bathtub: small errors now, same as Cournot
 
 # PID Controller
-PID_INITIAL_PARAMS = [0.3, 0.02, 0.01]  # Initial [kp, ki, kd] values
+PID_INITIAL_PARAMS = [0.2, 0.05, 0.01]  # Initial [kp, ki, kd] values
 
 # Neural Network Controller
 NEURAL_NETWORK = {
