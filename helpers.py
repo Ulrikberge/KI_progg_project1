@@ -81,8 +81,7 @@ def create_plant():
             area=cfg["tank_area"],
             drain_coefficient=cfg["outlet_area"],
             initial_height=cfg["initial_level"],
-            gravity=9.81,
-            dt=1.0,
+            gravity=cfg["bathtub_gravity"],
             noise_range=cfg["disturbance_range"]
         )
         return plant, cfg["target_level"]

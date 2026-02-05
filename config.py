@@ -4,7 +4,7 @@
 Simply change ACTIVE_PRESET to switch between experiments.
 """
 
-ACTIVE_PRESET = "blood_glucose_pid"  # See PRESETS dict below for options
+ACTIVE_PRESET = "blood_glucose_neural"  # See PRESETS dict below for options
 
 VERBOSE = True
 ENABLE_PLOTS = True
@@ -28,6 +28,7 @@ PRESETS = {
             "outlet_area": 0.01,
             "initial_level": 5.0,
             "target_level": 5.0,
+            "bathtub_gravity": 9.81,
             "disturbance_range": [-0.01, 0.01],
         },
     },
@@ -52,6 +53,7 @@ PRESETS = {
             "outlet_area": 0.01,
             "initial_level": 5.0,
             "target_level": 5.0,
+            "bathtub_gravity": 9.81,
             "disturbance_range": [-0.01, 0.01],
         },
     },

@@ -50,17 +50,16 @@ class BloodGlucosePlant(Plant):
 class BathtubPlant(Plant):
     """Water tank with gravity-driven drain."""
 
-    GRAVITY = 9.81
-
-    def __init__(self, area, drain_coefficient, initial_height, gravity, dt, noise_range):
+    def __init__(self, area, drain_coefficient, initial_height, gravity, noise_range):
         super().__init__(noise_range)
         self._tank_area = area
         self._drain_area = drain_coefficient
         self._level = initial_height
+        self.gravity = gravity
 
     def _drain_velocity(self):
         """Torricelli's law: v = sqrt(2gh)"""
-        return jnp.sqrt(2.0 * self.GRAVITY * self._level)
+        return jnp.sqrt(2.0 * self.gravity * self._level)
 
     def get_output(self):
         return self._level
