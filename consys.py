@@ -1,4 +1,5 @@
-"""Control System Training Module (CONSYS)."""
+# Control System Training Module (CONSYS)
+
 import os
 import jax
 import jax.numpy as jnp
@@ -9,9 +10,9 @@ from helpers import initialize_parameters, create_controller, create_plant
 
 
 class ControlSystemTrainer:
-    """Handles training of controllers using gradient-based optimization."""
-
-    GRAD_CLIP = 1.0  # Gradient clipping bound for neural networks
+    # Klasse for å håndtere trening av controllere ved hjelp av gradients
+    # GRAD_CLIP er grensen for gradient clipping for neural networks
+    GRAD_CLIP = 1.0 
 
     def __init__(self):
         self._preset = get_preset()
@@ -28,7 +29,7 @@ class ControlSystemTrainer:
         return self._preset["plant_type"]
 
     def _compute_loss(self, params):
-        """Run simulation and return MSE loss."""
+        #Beregn MSE loss 
         controller = create_controller()
         plant, target = create_plant()
         n_steps = self._training_cfg["timesteps"]
@@ -43,11 +44,12 @@ class ControlSystemTrainer:
         return jnp.mean(jnp.square(jnp.array(errors)))
 
     def _apply_gradients(self, params, grads):
-        """Apply gradient descent update to parameters."""
+        #Bruk gradient descent for å oppdatere parametrene
+        # Ikke endre det under uten å tenke seg godt om
         lr = self._training_cfg["learning_rate"]
 
         if isinstance(params, list):
-            # Neural network: clip gradients and update each layer
+            # Neura nett: klipp gradients og oppdater hver layer
             clipped = [
                 tuple(jnp.clip(g, -self.GRAD_CLIP, self.GRAD_CLIP) for g in layer)
                 for layer in grads
@@ -57,12 +59,11 @@ class ControlSystemTrainer:
                 for layer_p, layer_g in zip(params, clipped)
             ]
         else:
-            # PID: simple gradient descent
+            # PID: enkel gradient descent
             self._param_history.append(params)
             return params - lr * grads
 
     def _log_epoch(self, epoch_num, total_epochs, params):
-        """Print training progress if verbose mode enabled."""
         if not config.VERBOSE:
             return
 
@@ -73,7 +74,6 @@ class ControlSystemTrainer:
             print(f"  Kp={params[0]:.4f}, Ki={params[1]:.4f}, Kd={params[2]:.4f}")
 
     def _print_summary(self):
-        """Print final training summary."""
         initial = self._mse_history[0]
         final = self._mse_history[-1]
 
@@ -87,11 +87,9 @@ class ControlSystemTrainer:
         print("=" * 70)
 
     def run(self):
-        """Execute the training loop.
-
-        Returns:
-            Tuple of (final_params, mse_history, param_history)
-        """
+        #Kjør treningen
+        #Returner (final_params, mse_history, param_history)
+        
         n_epochs = self._training_cfg["epochs"]
         lr = self._training_cfg["learning_rate"]
 
@@ -118,11 +116,9 @@ class ControlSystemTrainer:
 
 
 def train():
-    """Train controller using gradient descent on MSE loss.
-
-    Returns:
-        Tuple of (final_params, mse_history, param_history)
-    """
+    # Tren controllerw ved å bruke gradient descent på MSE loss
+    # Returner (final_params, mse_history, param_history)
+   
     trainer = ControlSystemTrainer()
     return trainer.run()
 

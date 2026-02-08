@@ -1,8 +1,9 @@
-"""Controller implementations for the control system."""
+# Controller implementeringer for control systemet
+
 import jax.numpy as jnp
 
 
-# Activation function registry
+# Activation function register
 ACTIVATIONS = {
     "sigmoid": lambda x: 1.0 / (1.0 + jnp.exp(-x)),
     "tanh": jnp.tanh,
@@ -12,7 +13,7 @@ ACTIVATIONS = {
 
 
 class Controller:
-    """Base controller with error tracking."""
+    # Base controller med feilsporing
 
     INTEGRAL_LIMIT = 50.0  # Anti-windup bound
 
@@ -20,7 +21,7 @@ class Controller:
         self._errors = []
 
     def _compute_error_terms(self, e):
-        """Compute P, I, D terms from current error."""
+        # Beregn P, I, D fra current error
         self._errors.append(e)
 
         p_term = e
@@ -34,7 +35,7 @@ class Controller:
 
 
 class PIDController(Controller):
-    """PID controller: U = Kp*e + Ki*integral(e) + Kd*de/dt"""
+    # PID controller: U = Kpc*ce + Kic*cintegral(e) + Kd*de/dt
 
     def calculate_control_signal(self, params, error):
         pid_input = self._compute_error_terms(error)
@@ -42,7 +43,7 @@ class PIDController(Controller):
 
 
 class NeuralController(Controller):
-    """Feedforward neural network controller."""
+    # Feedforward neural network controller
 
     def __init__(self, activation_functions, output_activation_function):
         super().__init__()
@@ -57,10 +58,8 @@ class NeuralController(Controller):
     def calculate_control_signal(self, params, error):
         x = self._compute_error_terms(error)
 
-        # Build activation list for all layers
         act_names = self._hidden_acts + [self._output_act]
 
-        # Forward through network
         for act_name, layer in zip(act_names, params):
             x = self._forward_pass(x, layer)
             x = ACTIVATIONS[act_name](x)

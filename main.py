@@ -1,22 +1,19 @@
-"""Main entry point for the JAX-based control system.
+# Kjør main
+# For å gjøre konfigendringer: config.py
 
-TO CONFIGURE: Edit config.py
-TO RUN: python main.py
-"""
 import numpy as np
 import config as config
 from consys import train, plot_results
 
 
 def main():
-    """Run training experiment."""
-    # Set random seed for reproducibility
+    # Kjør main
     np.random.seed(config.RANDOM_SEED)
 
-    # Train controller
+    # Tren controller
     params, mse_history, param_history = train()
 
-    # Plot results
+    # Plot resultatene
     if config.ENABLE_PLOTS:
         plot_results(mse_history, param_history)
 

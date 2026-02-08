@@ -1,10 +1,6 @@
-"""Experiment configuration with per-plant presets.
+# Endre ACTIVE_PRESET for å bytte mellom controller- og plantesystemer
 
-
-Simply change ACTIVE_PRESET to switch between experiments.
-"""
-
-ACTIVE_PRESET = "blood_glucose_neural"  # See PRESETS dict below for options
+ACTIVE_PRESET = "bathtub_pid" 
 
 VERBOSE = True
 ENABLE_PLOTS = True
@@ -21,7 +17,7 @@ PRESETS = {
             "learning_rate": 0.01,
         },
         "pid": {
-            "initial_gains": [0.2, 0.05, 0.01],  # [Kp, Ki, Kd]
+            "initial_gains": [0.2, 0.05, 0.01],  # Kp, Ki, Kd
         },
         "plant": {
             "tank_area": 1.0,
@@ -156,7 +152,7 @@ PRESETS = {
 }
 
 def get_preset():
-    """Return the currently active preset configuration."""
+    # Returner den aktive modellen som er valgt i ACTIVE_PRESET
     if ACTIVE_PRESET not in PRESETS:
         available = ", ".join(PRESETS.keys())
         raise ValueError(f"Unknown preset '{ACTIVE_PRESET}'. Available: {available}")
@@ -164,17 +160,17 @@ def get_preset():
 
 
 def get_plant_config():
-    """Return plant-specific configuration from active preset."""
+    #Returner modelspesifikke parametere for den aktive modellen
     return get_preset()["plant"]
 
 
 def get_training_config():
-    """Return training hyperparameters from active preset."""
+    # Returner treningsparametra for den aktive modellen
     return get_preset()["training"]
 
 
 def get_controller_config():
-    """Return controller configuration (pid or neural) from active preset."""
+    # Returner controller konfig for den aktive modellen
     preset = get_preset()
     ctrl_type = preset["controller_type"]
     return preset.get(ctrl_type, {})
